@@ -59,7 +59,7 @@ cd image-preprocess
 
 ```bash
 cd backend
-uv pip install -e .
+uv sync --locked
 ```
 
 3. 运行应用
