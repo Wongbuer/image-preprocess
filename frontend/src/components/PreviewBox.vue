@@ -2,61 +2,70 @@
 import { ElButton } from 'element-plus'
 import { onMounted, ref, watch } from 'vue'
 
-// 接收父组件参数
+// 接收父组件传来的三个参数
 const props = defineProps({
   functionName: String,
   params: Object,
   original: String,
 })
-// 处理后的图片
+
 const processedImage = ref('')
-//  加载状态
-const loading = ref(true)
+const loading = ref(false)
+const errorMsg = ref('')
 
 async function processImage() {
   if (!props.original) {
     processedImage.value = ''
     loading.value = false
+    errorMsg.value = ''
     return
   }
 
   loading.value = true
-  let response
+  errorMsg.value = ''
 
   try {
-    response = await fetch('http://localhost:8000/process', {
+    const response = await fetch('http://127.0.0.1:8000/api/image/process', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        image: props.original,
-        function: props.functionName,
+        image_data: props.original,
+        processor_name: props.functionName,
         params: props.params,
       }),
     })
 
+    if (!response.ok) {
+      throw new Error(`服务器错误：${response.status}`)
+    }
+
     const result = await response.json()
-    console.warn('处理后的图像 base64:', result.processed)
-    processedImage.value = result.processed
-  }
-  catch (err) {
+
+    if (result.data) {
+      // 给返回的纯base64字符串加上前缀
+      processedImage.value = 'data:image/png;base64,' + result.data
+    } else {
+      throw new Error('接口返回数据格式异常，没有data字段')
+    }
+  } catch (err) {
+    errorMsg.value = '处理失败：' + err.message
     console.error('处理失败', err)
-  }
-  finally {
+  } finally {
     loading.value = false
   }
 }
 
+// 监听 props 变化，立即触发图片处理
 watch(
   [() => props.original, () => props.functionName, () => props.params],
   processImage,
-  { immediate: true, deep: true },
+  { immediate: true, deep: true }
 )
 
 onMounted(processImage)
 
 function saveImage() {
-  if (!processedImage.value)
-    return
+  if (!processedImage.value) return
 
   const link = document.createElement('a')
   link.href = processedImage.value
@@ -70,19 +79,31 @@ function saveImage() {
 <template>
   <div style="text-align: center;">
     <h5>{{ functionName }}</h5>
-    <div v-if="loading">
+
+    <div v-if="loading" style="margin: 20px 0; font-weight: bold;">
       处理中...
     </div>
+
     <div v-else>
       <img
+        v-if="processedImage"
         :src="processedImage"
-        alt="Processed"
+        alt="处理后的图片"
         style="max-width: 100%; border: 1px solid #ccc;"
-      >
+      />
+      <div v-else style="color: #888; margin: 10px 0;">
+        暂无处理结果
+      </div>
+
+      <div v-if="errorMsg" style="color: red; margin: 10px 0;">
+        {{ errorMsg }}
+      </div>
+
       <ElButton
+        v-if="processedImage"
         type="primary"
         size="small"
-        style="margin-top: 8px;"
+        style="margin-top: 10px;"
         @click="saveImage"
       >
         保存图片
