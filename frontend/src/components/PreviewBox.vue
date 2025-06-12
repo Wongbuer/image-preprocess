@@ -1,10 +1,10 @@
 <script setup>
+import api from '@/api/index.js'
 import { ElButton } from 'element-plus'
 import { onMounted, ref, watch } from 'vue'
 
-// 接收父组件传来的三个参数
 const props = defineProps({
-  functionName: String,
+  processor: Object,
   params: Object,
   original: String,
 })
@@ -14,7 +14,7 @@ const loading = ref(false)
 const errorMsg = ref('')
 
 async function processImage() {
-  if (!props.original) {
+  if (!props.original || !props.processor?.name) {
     processedImage.value = ''
     loading.value = false
     errorMsg.value = ''
@@ -25,39 +25,26 @@ async function processImage() {
   errorMsg.value = ''
 
   try {
-    const response = await fetch('http://127.0.0.1:8000/api/image/process', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        image_data: props.original,
-        processor_name: props.functionName,
-        params: props.params,
-      }),
-    })
+  const result = await api.post('/image/process', {
+    image_data: props.original,
+    processor_name: props.processor.name,
+    params: props.params,
+  })
 
-    if (!response.ok) {
-      throw new Error(`服务器错误：${response.status}`)
-    }
-
-    const result = await response.json()
-
-    if (result.data) {
-      // 给返回的纯base64字符串加上前缀
-      processedImage.value = 'data:image/png;base64,' + result.data
-    } else {
-      throw new Error('接口返回数据格式异常，没有data字段')
-    }
-  } catch (err) {
-    errorMsg.value = '处理失败：' + err.message
-    console.error('处理失败', err)
-  } finally {
-    loading.value = false
+  if (result) {
+    processedImage.value = 'data:image/png;base64,' + result
+  } else {
+    throw new Error('接口返回为空')
   }
+} catch (err) {
+  errorMsg.value = '处理失败：' + err.message
+  console.error('处理失败', err)
+} finally {
+  loading.value = false
 }
 
-// 监听 props 变化，立即触发图片处理
 watch(
-  [() => props.original, () => props.functionName, () => props.params],
+  [() => props.original, () => props.processor, () => props.params],
   processImage,
   { immediate: true, deep: true }
 )
@@ -69,7 +56,7 @@ function saveImage() {
 
   const link = document.createElement('a')
   link.href = processedImage.value
-  link.download = `${props.functionName || 'processed-image'}.png`
+  link.download = `${props.processor?.name || 'processed-image'}.png`
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
@@ -78,7 +65,7 @@ function saveImage() {
 
 <template>
   <div style="text-align: center;">
-    <h5>{{ functionName }}</h5>
+    <h5>{{ props.processor?.description || props.processor?.name || '未选择处理器' }}</h5>
 
     <div v-if="loading" style="margin: 20px 0; font-weight: bold;">
       处理中...
