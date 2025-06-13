@@ -36,6 +36,8 @@ watch(selectedProcessor, (newProcessor) => {
           defaults[param.name] = 0
         } else if (param.type === 'str') {
           defaults[param.name] = ''
+        } else if (param.type === 'bool') {
+          defaults[param.name] = false
         } else {
           defaults[param.name] = null
         }
@@ -52,10 +54,22 @@ watch(
   [selectedProcessor, paramValues],
   () => {
     if (selectedProcessor.value) {
+      const rawParams = paramValues.value
+      const normalizedParams = {}
+
+      selectedProcessor.value.parameters.forEach(param => {
+        const val = rawParams[param.name]
+        if (param.type === 'bool') {
+          normalizedParams[param.name] = val ? 1 : 0
+        } else {
+          normalizedParams[param.name] = val
+        }
+      })
+
       emit('update:selectedFunctions', [{
         name: selectedProcessor.value.name,
         description: selectedProcessor.value.description,
-        params: paramValues.value
+        params: normalizedParams
       }])
     } else {
       emit('update:selectedFunctions', [])
@@ -88,39 +102,52 @@ onMounted(fetchProcessors)
     <div v-if="selectedProcessor" style="margin-top: 16px;">
       <h4>参数设置：</h4>
       <div
-        v-for="param in selectedProcessor.parameters"
-        :key="param.name"
-        style="margin-bottom: 12px;"
+        v-if="selectedProcessor.parameters && selectedProcessor.parameters.length > 0"
       >
-        <label :for="param.name" style="display: block; font-weight: 600;">
-          {{ param.name }} <span v-if="param.required" style="color: red;">*</span>：
-          <small style="color: #999;">{{ param.description }}</small>
-        </label>
-
-        <!-- 整数参数 -->
-        <el-input-number
-          v-if="param.type === 'int'"
-          v-model="paramValues[param.name]"
-          :min="param.min_value ?? 0"
-          :max="param.max_value ?? 100"
-          :step="param.step ?? 1"
-          :id="param.name"
-          style="width: 100%;"
-        />
-
-        <!-- 字符串参数 -->
-        <el-input
-          v-else-if="param.type === 'str'"
-          v-model="paramValues[param.name]"
-          :id="param.name"
-          placeholder="请输入文本"
-          style="width: 100%;"
-        />
-
-        <!-- 其他类型提示 -->
-        <div v-else>
-          <em>暂不支持参数类型: {{ param.type }}</em>
+        <div
+          v-for="param in selectedProcessor.parameters"
+          :key="param.name"
+          style="margin-bottom: 12px;"
+        >
+          <label :for="param.name" style="display: block; font-weight: 600;">
+            {{ param.name }} <span v-if="param.required" style="color: red;">*</span>：
+            <small style="color: #999;">{{ param.description }}</small>
+          </label>
+          <!-- 整数参数 -->
+          <el-input-number
+            v-if="param.type === 'int'"
+            v-model="paramValues[param.name]"
+            :min="param.min_value ?? 0"
+            :max="param.max_value ?? 100"
+            :step="param.step ?? 1"
+            :id="param.name"
+            style="width: 100%;"
+          />
+          <!-- 字符串参数 -->
+          <el-input
+            v-else-if="param.type === 'str'"
+            v-model="paramValues[param.name]"
+            :id="param.name"
+            placeholder="请输入文本"
+            style="width: 100%;"
+          />
+          <!-- 布尔参数 -->
+          <el-switch
+            v-else-if="param.type === 'bool'"
+            v-model="paramValues[param.name]"
+            :id="param.name"
+            active-text="是"
+            inactive-text="否"
+          />
+          <!-- 其他类型提示 -->
+          <div v-else>
+            <em>暂不支持参数类型: {{ param.type }}</em>
+          </div>
         </div>
+      </div>
+      <!-- 💡 没有参数的情况 -->
+      <div v-else style="color: #999; font-style: italic; margin-top: 10px;">
+        当前处理器无需设置参数。
       </div>
     </div>
   </div>

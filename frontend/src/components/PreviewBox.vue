@@ -1,7 +1,7 @@
 <script setup>
-import api from '@/api/index.js'
 import { ElButton } from 'element-plus'
 import { onMounted, ref, watch } from 'vue'
+import api from '@/api/index.js'
 
 const props = defineProps({
   processor: Object,
@@ -25,16 +25,19 @@ async function processImage() {
   errorMsg.value = ''
 
   try {
+    // console.log('processor_name:', props.processor.name)
+    // console.log('params:', props.params)
+
     const result = await api.post('/image/process', {
       image_data: props.original,
       processor_name: props.processor.name,
       params: props.params,
     })
-
-    if (result) {
-      processedImage.value = 'data:image/png;base64,' + result
+    // console.log('接口返回:', result)
+    if (result && result.processed_image) {
+      processedImage.value = `data:image/png;base64,${result.processed_image}`
     } else {
-      throw new Error('接口返回为空')
+      throw new Error('接口未返回图像数据')
     }
   } catch (err) {
     errorMsg.value = '处理失败：' + err.message
@@ -42,25 +45,26 @@ async function processImage() {
   } finally {
     loading.value = false
   }
+}
 
-  watch(
-    [() => props.original, () => props.processor, () => props.params],
-    processImage,
-    {immediate: true, deep: true}
-  )
+watch(
+  [() => props.original, () => props.processor, () => props.params],
+  processImage,
+  { immediate: true, deep: true }
+)
 
-  onMounted(processImage)
+onMounted(processImage)
 
-  function saveImage() {
-    if (!processedImage.value) return
+function saveImage() {
+  if (!processedImage.value)
+    return
 
-    const link = document.createElement('a')
-    link.href = processedImage.value
-    link.download = `${props.processor?.name || 'processed-image'}.png`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-  }
+  const link = document.createElement('a')
+  link.href = processedImage.value
+  link.download = `${props.processor?.name || 'processed-image'}.png`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
 }
 </script>
 
