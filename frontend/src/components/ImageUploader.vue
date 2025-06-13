@@ -17,7 +17,6 @@ function beforeUpload(file) {
     emit('uploadSuccess', reader.result)
   }
   reader.readAsDataURL(file)
-
   return false
 }
 
