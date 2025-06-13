@@ -25,41 +25,42 @@ async function processImage() {
   errorMsg.value = ''
 
   try {
-  const result = await api.post('/image/process', {
-    image_data: props.original,
-    processor_name: props.processor.name,
-    params: props.params,
-  })
+    const result = await api.post('/image/process', {
+      image_data: props.original,
+      processor_name: props.processor.name,
+      params: props.params,
+    })
 
-  if (result) {
-    processedImage.value = 'data:image/png;base64,' + result
-  } else {
-    throw new Error('接口返回为空')
+    if (result) {
+      processedImage.value = 'data:image/png;base64,' + result
+    } else {
+      throw new Error('接口返回为空')
+    }
+  } catch (err) {
+    errorMsg.value = '处理失败：' + err.message
+    console.error('处理失败', err)
+  } finally {
+    loading.value = false
   }
-} catch (err) {
-  errorMsg.value = '处理失败：' + err.message
-  console.error('处理失败', err)
-} finally {
-  loading.value = false
-}
 
-watch(
-  [() => props.original, () => props.processor, () => props.params],
-  processImage,
-  { immediate: true, deep: true }
-)
+  watch(
+    [() => props.original, () => props.processor, () => props.params],
+    processImage,
+    {immediate: true, deep: true}
+  )
 
-onMounted(processImage)
+  onMounted(processImage)
 
-function saveImage() {
-  if (!processedImage.value) return
+  function saveImage() {
+    if (!processedImage.value) return
 
-  const link = document.createElement('a')
-  link.href = processedImage.value
-  link.download = `${props.processor?.name || 'processed-image'}.png`
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
+    const link = document.createElement('a')
+    link.href = processedImage.value
+    link.download = `${props.processor?.name || 'processed-image'}.png`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
 }
 </script>
 
